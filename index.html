@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Changa:wght@500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --ink:#14232b; --ink-soft:#4c626e;
@@ -83,6 +84,13 @@
   .field input{width:100px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:1rem;font-weight:600;color:var(--ink);text-align:center;background:var(--paper)}
   .field input:focus{outline:2px solid var(--teal);border-color:var(--teal)}
 
+  /* صف التصدير */
+  .export-row{margin-top:18px;padding-top:16px;border-top:1px dashed var(--line)}
+  .export-btn{background:var(--teal);color:#fff;border:none;border-radius:10px;padding:12px 24px;font-family:'Changa',sans-serif;font-weight:700;font-size:.98rem;cursor:pointer;transition:background .2s}
+  .export-btn:hover{background:var(--teal-deep)}
+  .export-btn:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+  .export-hint{font-size:.8rem;color:var(--ink-soft);margin-top:10px;line-height:1.7;max-width:720px}
+
   /* البطاقات */
   .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px 15px;position:relative;overflow:hidden;box-shadow:0 4px 14px rgba(20,35,43,.05)}
@@ -123,6 +131,8 @@
   .modal button:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
   .admin-badge{display:none;background:#e7f2ef;color:var(--teal-deep);border:1px solid #bcd9d2;border-radius:999px;padding:6px 16px;font-size:.82rem;font-weight:700;margin-bottom:14px}
   .admin-badge.show{display:inline-block}
+  .save-state{font-size:.8rem;font-weight:600;margin-inline-start:10px;color:var(--teal-deep)}
+  .save-state.err{color:#a1354d}
 
   /* المقارنة المميزة: سعودي / متعاقد */
   .featured{
@@ -226,6 +236,7 @@
   <!-- لوحة الإدخال (للأدمن فقط) -->
   <section class="panel" id="editPanel" aria-label="تعديل الأعداد">
     <span class="admin-badge show">وضع الأدمن — التعديلات تُحفظ تلقائياً لكل قسم على حدة</span>
+    <span class="save-state" id="saveState"></span>
     <h2>تعديل الأعداد — <span id="deptNameEdit">قسم علوم الحاسب</span></h2>
     <div class="panel-grid">
       <fieldset>
@@ -262,6 +273,10 @@
         <div class="field"><label for="sfP">دكتوراه</label><input type="number" min="0" id="sfP" value="0"></div>
         <div class="field"><label for="sfF">الرحلة العلمية</label><input type="number" min="0" id="sfF" value="0"></div>
       </fieldset>
+    </div>
+    <div class="export-row" id="exportRow">
+      <button class="export-btn" onclick="exportUpdatedHTML()">⬇ تصدير نسخة محدثة من الموقع (HTML)</button>
+      <p class="export-hint">لنشر الأرقام الجديدة لجميع الزوار: عدّل الأعداد لكل الأقسام، ثم اضغط هذا الزر لتنزيل ملف <b>dashboard.html</b> جديد بالأرقام مدموجة داخله، واستبدل به الملف المرفوع على الاستضافة. الحفظ التلقائي الحالي يعمل في متصفحك فقط.</p>
     </div>
   </section>
 
@@ -510,7 +525,7 @@
   <div class="modal">
     <h2 id="loginTitle">دخول الأدمن</h2>
     <p class="sub">التعديل متاح لمسؤول النظام فقط. الموقع للعرض لبقية الزوار.</p>
-    <label for="loginUser">اسم المستخدم</label>
+    <label for="loginUser" id="loginUserLabel">اسم المستخدم</label>
     <input type="text" id="loginUser" autocomplete="username">
     <label for="loginPass">كلمة المرور</label>
     <input type="password" id="loginPass" autocomplete="current-password">
@@ -526,6 +541,21 @@
 
 <script>
 const $ = id => document.getElementById(id);
+/* نسخة أصلية من كود الصفحة تُلتقط عند التحميل — تُستخدم لتوليد ملف محدث بالأرقام الجديدة */
+const PAGE_SOURCE = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+
+/* ============ إعداد Supabase ============
+   1) أنشئ مشروعاً مجانياً في supabase.com
+   2) نفّذ ملف setup.sql المرفق في SQL Editor
+   3) أنشئ مستخدم الأدمن من Authentication → Users (بريد + كلمة مرور)
+   4) انسخ Project URL و anon public key من Settings → API وضعهما هنا
+   ملاحظة أمان: مفتاح anon مصمم ليكون علنياً — الحماية تتم عبر سياسات
+   Row Level Security في قاعدة البيانات (القراءة للجميع، الكتابة للأدمن فقط) */
+const SUPABASE_URL = 'https://osoyaipjfshrihqfbmjt.supabase.co/rest/v1/';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zb3lhaXBqZnNocmlocWZibWp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MDMxMjQsImV4cCI6MjA5OTA3OTEyNH0.DFY1R5lmp-97w05CzbCbvKkEbnw1X4sCHIyrE9dBYl4';
+
+const SB_READY = SUPABASE_URL.startsWith('https://') && SUPABASE_ANON_KEY.length > 30;
+const sb = SB_READY ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 const num = id => Math.max(0, parseInt($(id).value) || 0);
 const fmt = n => n.toLocaleString('ar-SA');
 const pct = (part, total) => total ? Math.round(part/total*100) + '%' : '0%';
@@ -562,9 +592,17 @@ document.querySelectorAll('#subNav button').forEach(btn => {
   });
 });
 
+/* ---------- صلاحيات الأدمن ---------- */
+/* أمان: لا تُخزَّن كلمة المرور هنا نصاً، بل بصمتها المشفرة SHA-256 مع Salt.
+   من يطّلع على الكود لا يستطيع استخراج كلمة المرور من البصمة.
+
+   ⚠ لتغيير بيانات الدخول:
+   1) افتح الموقع في المتصفح ثم افتح الـ Console (F12)
+   2) اكتب:  makeHash('اسم_المستخدم_الجديد', 'كلمة_المرور_الجديدة')
+   3) انسخ البصمتين الناتجتين وضعهما مكان القيمتين أدناه */
 const AUTH_SALT = 'JazanCECS#2026$';
-const ADMIN_USER_HASH = '23651f4e3522b1783f716e988dc2ccdf3bad5e0c2a3f97d36da232af92428f48';
-const ADMIN_PASS_HASH = 'f8b2a689060cd3cedbab6c428134dd31eb606f56d1baef2a6ba3e20005ad1f42';
+const ADMIN_USER_HASH = '10eef1c23cb8e1d2e39b5e495629e342c72e50aaa231065685f1f598470a894e';
+const ADMIN_PASS_HASH = 'bf1084d8408db5b7f578da15b20dc0286900ddea1d825e70f0e160da087077df';
 
 /* SHA-256 — تطبيق مدمج يعمل في كل المتصفحات وحتى عند فتح الملف محلياً */
 function sha256(ascii){
@@ -646,15 +684,28 @@ function handleEditClick(){
   }
 }
 
-function attemptLogin(){
+function setAdminUI(on){
+  isAdmin = on;
+  $('logoutBtn').style.display = on ? 'inline-block' : 'none';
+  $('toggleBtn').textContent = on ? '✕ إغلاق التعديل' : '🔒 دخول الأدمن';
+  $('editPanel').classList.toggle('open', on);
+}
+
+async function attemptLogin(){
   const u = $('loginUser').value.trim();
   const p = $('loginPass').value;
-  if(hashOf(u) === ADMIN_USER_HASH && hashOf(p) === ADMIN_PASS_HASH){
-    isAdmin = true;
+  let ok = false;
+  if(SB_READY){
+    /* دخول حقيقي عبر خادم Supabase — كلمة المرور لا توجد في هذا الكود */
+    const { error } = await sb.auth.signInWithPassword({ email: u, password: p });
+    ok = !error;
+  } else {
+    /* وضع محلي (قبل ربط Supabase): مقارنة بصمات مشفرة */
+    ok = hashOf(u) === ADMIN_USER_HASH && hashOf(p) === ADMIN_PASS_HASH;
+  }
+  if(ok){
     closeLogin();
-    $('toggleBtn').textContent = '✕ إغلاق التعديل';
-    $('logoutBtn').style.display = 'inline-block';
-    $('editPanel').classList.add('open');
+    setAdminUI(true);
   } else {
     $('loginError').classList.add('show');
     $('loginPass').value = '';
@@ -665,10 +716,8 @@ function attemptLogin(){
 function closeLogin(){ $('loginModal').classList.remove('open'); }
 
 function logout(){
-  isAdmin = false;
-  $('editPanel').classList.remove('open');
-  $('logoutBtn').style.display = 'none';
-  $('toggleBtn').textContent = '🔒 دخول الأدمن';
+  if(SB_READY) sb.auth.signOut();
+  setAdminUI(false);
 }
 
 // دخول بزر Enter وإغلاق بزر Esc
@@ -730,13 +779,89 @@ function applyDept(){
   render();
 }
 
+/* تصدير نسخة HTML محدثة: الأرقام الحالية لكل الأقسام تصبح الأرقام الافتراضية للملف الجديد */
+function exportUpdatedHTML(){
+  const keys = ['fsm','fcm','fsf','fcf','stmB','stmD','stmG','stfB','stfD','stfG','smM','smP','smF','sfM','sfP','sfF'];
+  const pad = { cs:'cs:    ', ee:'ee:    ', civil:'civil: ', mech:'mech:  ', ind:'ind:   ' };
+  const lines = Object.keys(DEPARTMENTS).map(d => {
+    const vals = keys.map(k => k + ':' + (parseInt(allData[d][k]) || 0)).join(', ');
+    return '  ' + pad[d] + '{ ' + vals + ' }';
+  });
+  const newBlock = 'const DEFAULTS = {' + '\n' + lines.join(',' + '\n') + '\n' + '};';
+  const pattern = new RegExp('const DEFAULTS = \\{[\\s\\S]*?\\n\\};');
+  const updated = PAGE_SOURCE.replace(pattern, newBlock);
+  const blob = new Blob([updated], { type:'text/html;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'dashboard.html';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+}
+
 document.querySelectorAll('#deptBar button').forEach(btn => {
   btn.addEventListener('click', () => {
     curDept = btn.dataset.dept;
     applyDept();
-    saveData();
+    if(!SB_READY) saveData();
   });
 });
+
+/* ---------- وضع Supabase: قراءة وحفظ من قاعدة البيانات ---------- */
+function showSaveState(msg, isErr){
+  const el = $('saveState');
+  el.textContent = msg;
+  el.classList.toggle('err', !!isErr);
+  if(!isErr) setTimeout(() => { if(el.textContent === msg) el.textContent = ''; }, 2500);
+}
+
+async function loadRemote(){
+  try{
+    const { data, error } = await sb.from('departments').select('id,data');
+    if(error) throw error;
+    (data || []).forEach(r => {
+      if(allData[r.id]) allData[r.id] = Object.assign({}, DEFAULTS[r.id], r.data || {});
+    });
+    applyDept();
+  }catch(e){
+    showSaveState('تعذّر تحميل البيانات من قاعدة البيانات', true);
+  }
+}
+
+let saveTimer;
+function saveRemote(){
+  clearTimeout(saveTimer);
+  showSaveState('جارٍ الحفظ…');
+  saveTimer = setTimeout(async () => {
+    const { error } = await sb.from('departments')
+      .upsert({ id: curDept, data: allData[curDept], updated_at: new Date().toISOString() });
+    showSaveState(error ? 'فشل الحفظ — تأكد من تسجيل الدخول' : 'تم الحفظ في قاعدة البيانات ✓', !!error);
+  }, 600);
+}
+
+function initSupabase(){
+  /* نافذة الدخول تطلب البريد الإلكتروني بدل اسم المستخدم */
+  $('loginUserLabel').textContent = 'البريد الإلكتروني';
+  $('loginUser').type = 'email';
+  /* زر التصدير غير لازم — الحفظ يصل للزوار مباشرة */
+  $('exportRow').style.display = 'none';
+  /* استرجاع جلسة أدمن سابقة */
+  sb.auth.getSession().then(({ data }) => { if(data && data.session) setAdminUI(true); });
+  /* تحميل الأرقام المعتمدة للجميع */
+  loadRemote();
+  /* تحديث لحظي: أي حفظ من الأدمن يظهر فوراً في كل الصفحات المفتوحة */
+  try{
+    sb.channel('departments-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'departments' }, payload => {
+        const r = payload.new;
+        if(r && allData[r.id]){
+          allData[r.id] = Object.assign({}, DEFAULTS[r.id], r.data || {});
+          if(r.id === curDept && !isAdmin) applyDept();
+        }
+      }).subscribe();
+  }catch(e){ /* التحديث اللحظي اختياري */ }
+}
 
 /* ---------- الرسوم ---------- */
 Chart.defaults.font.family = "'IBM Plex Sans Arabic', sans-serif";
@@ -1022,11 +1147,12 @@ function render(){
 document.querySelectorAll('.panel input').forEach(inp => inp.addEventListener('input', () => {
   allData[curDept][inp.id] = inp.value;
   render();
-  saveData();
+  if(SB_READY) saveRemote(); else saveData();
 }));
-loadData();
+if(!SB_READY) loadData();
 applyDept();
 showPage();
+if(SB_READY) initSupabase();
 </script>
 </body>
 </html>
