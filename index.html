@@ -108,9 +108,10 @@
   .charts.duo{grid-template-columns:1fr 1fr}
   .charts.triple{grid-template-columns:repeat(3,1fr)}
   .charts + .charts{margin-top:16px}
-  .chart-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:0 4px 14px rgba(20,35,43,.05)}
+  .chart-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:0 4px 14px rgba(20,35,43,.05);min-width:0}
   .chart-card h3{font-family:'Changa',sans-serif;font-size:1rem;color:var(--teal-deep);margin-bottom:12px}
-  .chart-wrap{position:relative;height:300px}
+  .chart-wrap{position:relative;height:300px;width:100%}
+  .chart-wrap canvas{max-width:100%}
 
   /* نافذة تسجيل الدخول */
   .modal-overlay{position:fixed;inset:0;background:rgba(20,35,43,.55);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
@@ -207,10 +208,11 @@
   <div class="dept-bar" id="deptBar">
     <span class="dept-label">القسم:</span>
     <button data-dept="cs" class="active">علوم الحاسب</button>
-    <button data-dept="ee">الهندسة الكهربائية والشبكات</button>
-    <button data-dept="civil">الهندسة المدنية</button>
-    <button data-dept="mech">الهندسة الميكانيكية</button>
+    <button data-dept="ee">الهندسة الكهربائية والإلكترونية</button>
+    <button data-dept="civil">الهندسة المدنية والمعمارية</button>
     <button data-dept="ind">الهندسة الصناعية</button>
+    <button data-dept="chem">الهندسة الكيميائية</button>
+    <button data-dept="mech">الهندسة الميكانيكية</button>
   </div>
 </div>
 
@@ -544,7 +546,6 @@ const $ = id => document.getElementById(id);
 /* نسخة أصلية من كود الصفحة تُلتقط عند التحميل — تُستخدم لتوليد ملف محدث بالأرقام الجديدة */
 const PAGE_SOURCE = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
 
-
 const SUPABASE_URL = 'https://osoyaipjfshrihqfbmjt.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zb3lhaXBqZnNocmlocWZibWp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MDMxMjQsImV4cCI6MjA5OTA3OTEyNH0.DFY1R5lmp-97w05CzbCbvKkEbnw1X4sCHIyrE9dBYl4';
 
@@ -565,9 +566,14 @@ function showPage(){
   if(page) page.classList.add('active');
   $('subNav').style.display = curCat === 'summary' ? 'none' : 'flex';
   document.documentElement.style.setProperty('--accent-cat', catColors[curCat]);
-  // إعادة ضبط أحجام الرسوم عند إظهار الصفحة
-  requestAnimationFrame(() => Object.values(charts).forEach(c => c.resize()));
+  // إعادة ضبط أحجام الرسوم عند إظهار الصفحة (دفعتان لضمان استقرار التخطيط على الجوال)
+  requestAnimationFrame(() => {
+    Object.values(charts).forEach(c => { try{ c.resize(); }catch(e){} });
+    requestAnimationFrame(() => Object.values(charts).forEach(c => { try{ c.resize(); c.update('none'); }catch(e){} }));
+  });
 }
+window.addEventListener('orientationchange', () => setTimeout(() =>
+  Object.values(charts).forEach(c => { try{ c.resize(); }catch(e){} }), 300));
 
 document.querySelectorAll('#mainNav button').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -734,18 +740,20 @@ $('loginModal').addEventListener('click', e => { if(e.target === $('loginModal')
 /* ---------- الأقسام وبياناتها المستقلة ---------- */
 const DEPARTMENTS = {
   cs:    'قسم علوم الحاسب',
-  ee:    'قسم الهندسة الكهربائية والشبكات',
-  civil: 'قسم الهندسة المدنية',
-  mech:  'قسم الهندسة الميكانيكية',
-  ind:   'قسم الهندسة الصناعية'
+  ee:    'قسم الهندسة الكهربائية والإلكترونية',
+  civil: 'قسم الهندسة المدنية والمعمارية',
+  ind:   'قسم الهندسة الصناعية',
+  chem:  'قسم الهندسة الكيميائية',
+  mech:  'قسم الهندسة الميكانيكية'
 };
 /* الأعداد الافتراضية لكل قسم — عدّلها من لوحة الأدمن وتُحفظ تلقائياً */
 const DEFAULTS = {
   cs:    { fsm:0, fcm:0, fsf:0, fcf:0, stmB:0, stmD:0, stmG:0, stfB:0, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 },
   ee:    { fsm:0, fcm:0, fsf:0, fcf:0, stmB:0, stmD:0, stmG:0, stfB:0, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 },
   civil: { fsm:0, fcm:0, fsf:0, fcf:0, stmB:0, stmD:0, stmG:0, stfB:0, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 },
-  mech:  { fsm:0, fcm:0, fsf:0, fcf:0, stmB:0, stmD:0, stmG:0, stfB:0, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 },
-  ind:   { fsm:0, fcm:0, fsf:0, fcf:0, stmB:0, stmD:0, stmG:0, stfB:0, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 }
+  ind:   { fsm:0, fcm:0, fsf:0, fcf:0, stmB:0, stmD:0, stmG:0, stfB:0, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 },
+  chem:  { fsm:0, fcm:0, fsf:0, fcf:0, stmB:0, stmD:0, stmG:0, stfB:0, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 },
+  mech:  { fsm:0, fcm:0, fsf:0, fcf:0, stmB:0, stmD:0, stmG:0, stfB:0, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 }
 };
 let curDept = 'cs';
 let allData = JSON.parse(JSON.stringify(DEFAULTS));
@@ -785,7 +793,7 @@ function applyDept(){
 /* تصدير نسخة HTML محدثة: الأرقام الحالية لكل الأقسام تصبح الأرقام الافتراضية للملف الجديد */
 function exportUpdatedHTML(){
   const keys = ['fsm','fcm','fsf','fcf','stmB','stmD','stmG','stfB','stfD','stfG','smM','smP','smF','sfM','sfP','sfF'];
-  const pad = { cs:'cs:    ', ee:'ee:    ', civil:'civil: ', mech:'mech:  ', ind:'ind:   ' };
+  const pad = { cs:'cs:    ', ee:'ee:    ', civil:'civil: ', ind:'ind:   ', chem:'chem:  ', mech:'mech:  ' };
   const lines = Object.keys(DEPARTMENTS).map(d => {
     const vals = keys.map(k => k + ':' + (parseInt(allData[d][k]) || 0)).join(', ');
     return '  ' + pad[d] + '{ ' + vals + ' }';
@@ -869,6 +877,9 @@ function initSupabase(){
 /* ---------- الرسوم ---------- */
 Chart.defaults.font.family = "'IBM Plex Sans Arabic', sans-serif";
 Chart.defaults.color = '#4c626e';
+/* متصفحات الجوال تحدّ من ذاكرة الرسم الإجمالية؛ مع 33 لوحة رسم بدقة شاشة ثلاثية
+   يتجاوز المجموع الحد فتظهر الرسوم فارغة — نسقف الدقة عند 1.5 لحل ذلك */
+Chart.defaults.devicePixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
 
 /* إضافة: كتابة قيمة في منتصف مؤشرات Gauge */
 Chart.register({
