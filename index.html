@@ -544,13 +544,7 @@ const $ = id => document.getElementById(id);
 /* نسخة أصلية من كود الصفحة تُلتقط عند التحميل — تُستخدم لتوليد ملف محدث بالأرقام الجديدة */
 const PAGE_SOURCE = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
 
-/* ============ إعداد Supabase ============
-   1) أنشئ مشروعاً مجانياً في supabase.com
-   2) نفّذ ملف setup.sql المرفق في SQL Editor
-   3) أنشئ مستخدم الأدمن من Authentication → Users (بريد + كلمة مرور)
-   4) انسخ Project URL و anon public key من Settings → API وضعهما هنا
-   ملاحظة أمان: مفتاح anon مصمم ليكون علنياً — الحماية تتم عبر سياسات
-   Row Level Security في قاعدة البيانات (القراءة للجميع، الكتابة للأدمن فقط) */
+
 const SUPABASE_URL = 'https://osoyaipjfshrihqfbmjt.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zb3lhaXBqZnNocmlocWZibWp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MDMxMjQsImV4cCI6MjA5OTA3OTEyNH0.DFY1R5lmp-97w05CzbCbvKkEbnw1X4sCHIyrE9dBYl4';
 
@@ -694,19 +688,28 @@ function setAdminUI(on){
 async function attemptLogin(){
   const u = $('loginUser').value.trim();
   const p = $('loginPass').value;
-  let ok = false;
+  let ok = false, reason = '';
   if(SB_READY){
     /* دخول حقيقي عبر خادم Supabase — كلمة المرور لا توجد في هذا الكود */
     const { error } = await sb.auth.signInWithPassword({ email: u, password: p });
     ok = !error;
+    if(error){
+      const msg = (error.message || '').toLowerCase();
+      if(msg.includes('invalid login')) reason = 'البريد أو كلمة المرور غير صحيحة. تأكد أنك تستخدم البريد الإلكتروني الذي أنشأته في Supabase → Authentication.';
+      else if(msg.includes('not confirmed')) reason = 'هذا البريد لم يُؤكَّد بعد. من Supabase → Authentication → Users: احذف المستخدم وأنشئه من جديد مع تفعيل خيار Auto Confirm User.';
+      else if(msg.includes('failed to fetch') || msg.includes('network')) reason = 'تعذّر الاتصال بـ Supabase. تحقق من الإنترنت ومن صحة Project URL في الكود.';
+      else reason = 'رسالة الخادم: ' + error.message;
+    }
   } else {
     /* وضع محلي (قبل ربط Supabase): مقارنة بصمات مشفرة */
     ok = hashOf(u) === ADMIN_USER_HASH && hashOf(p) === ADMIN_PASS_HASH;
+    reason = 'الموقع في الوضع المحلي (لم تُوضع مفاتيح Supabase بعد). بيانات الدخول المحلية: admin / Admin@2026 — بمطابقة الأحرف تماماً.';
   }
   if(ok){
     closeLogin();
     setAdminUI(true);
   } else {
+    $('loginError').textContent = reason || 'اسم المستخدم أو كلمة المرور غير صحيحة.';
     $('loginError').classList.add('show');
     $('loginPass').value = '';
     $('loginPass').focus();
