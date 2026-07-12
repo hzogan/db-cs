@@ -42,6 +42,9 @@
   .dept-bar button.active{background:var(--sand);color:#3d2c08;border-color:var(--sand);box-shadow:0 3px 10px rgba(201,154,63,.35)}
   .dept-bar button:hover:not(.active){border-color:var(--sand);color:var(--ink)}
   .dept-bar button:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+  .dept-bar button.all-dept{border:2px solid var(--sky);color:var(--sky);font-weight:700}
+  .dept-bar button.all-dept.active{background:var(--sky);color:#fff;border-color:var(--sky);box-shadow:0 3px 12px rgba(47,111,158,.4)}
+  .dept-bar button.all-dept:hover:not(.active){background:#eaf1f7;color:var(--sky)}
 
   /* شريط التنقل الرئيسي */
   .nav-wrap{background:var(--teal-deep);padding:0 24px}
@@ -134,6 +137,8 @@
   .admin-badge.show{display:inline-block}
   .save-state{font-size:.8rem;font-weight:600;margin-inline-start:10px;color:var(--teal-deep)}
   .save-state.err{color:#a1354d}
+  .agg-note{background:#eaf1f7;border:1px solid #c4d7e6;color:#255a80;border-radius:10px;padding:11px 15px;font-size:.85rem;font-weight:600;margin:10px 0 4px;line-height:1.7}
+  .panel input:disabled{opacity:.6;background:#eef2f1;cursor:not-allowed}
 
   /* المقارنة المميزة: سعودي / متعاقد */
   .featured{
@@ -207,6 +212,7 @@
 <div class="dept-wrap">
   <div class="dept-bar" id="deptBar">
     <span class="dept-label">القسم:</span>
+    <button data-dept="all" class="all-dept">كل الكلية</button>
     <button data-dept="cs" class="active">علوم الحاسب</button>
     <button data-dept="ee">الهندسة الكهربائية والإلكترونية</button>
     <button data-dept="civil">الهندسة المدنية والمعمارية</button>
@@ -240,6 +246,7 @@
     <span class="admin-badge show">وضع الأدمن — التعديلات تُحفظ تلقائياً لكل قسم على حدة</span>
     <span class="save-state" id="saveState"></span>
     <h2>تعديل الأعداد — <span id="deptNameEdit">قسم علوم الحاسب</span></h2>
+    <div class="agg-note" id="aggNote" style="display:none">وضع العرض التجميعي «كل الكلية»: الأعداد أدناه هي مجموع الأقسام الستة تلقائياً ولا تُعدَّل مباشرة — للتعديل اختر القسم المطلوب من الشريط أعلاه.</div>
     <div class="panel-grid">
       <fieldset>
         <legend>هيئة التدريس — ذكور</legend>
@@ -539,13 +546,8 @@
   </div>
 </div>
 
-<footer>
-    <p>
-        💻 Computer Science Department  
-        <br>
-        الموقع للعرض فقط — نسخة تجريبية
-    </p>
-</footer>
+<footer>الموقع للعرض فقط — تعديل الأعداد متاح لمسؤول النظام بعد تسجيل الدخول.</footer>
+
 <script>
 const $ = id => document.getElementById(id);
 /* نسخة أصلية من كود الصفحة تُلتقط عند التحميل — تُستخدم لتوليد ملف محدث بالأرقام الجديدة */
@@ -753,12 +755,12 @@ const DEPARTMENTS = {
 };
 /* الأعداد الافتراضية لكل قسم — عدّلها من لوحة الأدمن وتُحفظ تلقائياً */
 const DEFAULTS = {
-  cs:    { fsm:0, fcm:0, fsf:0, fcf:0, stmB:0, stmD:0, stmG:0, stfB:0, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 },
-  ee:    { fsm:0, fcm:0, fsf:0, fcf:0, stmB:0, stmD:0, stmG:0, stfB:0, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 },
-  civil: { fsm:0, fcm:0, fsf:0, fcf:0, stmB:0, stmD:0, stmG:0, stfB:0, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 },
-  ind:   { fsm:0, fcm:0, fsf:0, fcf:0, stmB:0, stmD:0, stmG:0, stfB:0, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 },
-  chem:  { fsm:0, fcm:0, fsf:0, fcf:0, stmB:0, stmD:0, stmG:0, stfB:0, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 },
-  mech:  { fsm:0, fcm:0, fsf:0, fcf:0, stmB:0, stmD:0, stmG:0, stfB:0, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 }
+  cs:    { fsm:38, fcm:37, fsf:24, fcf:48, stmB:1784, stmD:0, stmG:0, stfB:2720, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 },
+  ee:    { fsm:22, fcm:25, fsf:0, fcf:0, stmB:1154, stmD:0, stmG:0, stfB:158, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 },
+  civil: { fsm:17, fcm:14, fsf:0, fcf:0, stmB:340, stmD:0, stmG:0, stfB:43, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 },
+  ind:   { fsm:15, fcm:3, fsf:0, fcf:0, stmB:272, stmD:0, stmG:0, stfB:172, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 },
+  chem:  { fsm:6, fcm:13, fsf:0, fcf:1, stmB:201, stmD:0, stmG:0, stfB:28, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 },
+  mech:  { fsm:21, fcm:15, fsf:0, fcf:0, stmB:284, stmD:0, stmG:0, stfB:39, stfD:0, stfG:0, smM:0, smP:0, smF:0, sfM:0, sfP:0, sfF:0 }
 };
 let curDept = 'cs';
 let allData = JSON.parse(JSON.stringify(DEFAULTS));
@@ -780,16 +782,31 @@ function loadData(){
         allData[d] = Object.assign({}, DEFAULTS[d], saved.data[d] || {});
       });
     }
-    if(saved.curDept && DEPARTMENTS[saved.curDept]) curDept = saved.curDept;
+    if(saved.curDept && (saved.curDept === 'all' || DEPARTMENTS[saved.curDept])) curDept = saved.curDept;
   }catch(e){ /* التخزين غير متاح */ }
 }
 
-/* تطبيق بيانات القسم الحالي على حقول الإدخال والواجهة */
+/* تجميع أعداد كل الأقسام في كائن واحد لوضع «كل الكلية» */
+const DATA_KEYS = ['fsm','fcm','fsf','fcf','stmB','stmD','stmG','stfB','stfD','stfG','smM','smP','smF','sfM','sfP','sfF'];
+const ALL_LABEL = 'كل الكلية — جميع الأقسام';
+function aggregateAll(){
+  const sum = {};
+  DATA_KEYS.forEach(k => {
+    sum[k] = Object.keys(DEPARTMENTS).reduce((t, d) => t + (parseInt(allData[d][k]) || 0), 0);
+  });
+  return sum;
+}
+
+/* تطبيق بيانات القسم الحالي (أو المجموع الكلي) على حقول الإدخال والواجهة */
 function applyDept(){
-  const d = allData[curDept];
+  const isAll = curDept === 'all';
+  const d = isAll ? aggregateAll() : allData[curDept];
   Object.keys(d).forEach(id => { const el = $(id); if(el) el.value = d[id]; });
-  $('deptName').textContent = DEPARTMENTS[curDept];
-  $('deptNameEdit').textContent = DEPARTMENTS[curDept];
+  const label = isAll ? ALL_LABEL : DEPARTMENTS[curDept];
+  $('deptName').textContent = label;
+  $('deptNameEdit').textContent = label;
+  document.querySelectorAll('.panel input').forEach(i => i.disabled = isAll);
+  $('aggNote').style.display = isAll ? 'block' : 'none';
   document.querySelectorAll('#deptBar button').forEach(b =>
     b.classList.toggle('active', b.dataset.dept === curDept));
   render();
@@ -873,7 +890,7 @@ function initSupabase(){
         const r = payload.new;
         if(r && allData[r.id]){
           allData[r.id] = Object.assign({}, DEFAULTS[r.id], r.data || {});
-          if(r.id === curDept && !isAdmin) applyDept();
+          if((r.id === curDept || curDept === 'all') && !isAdmin) applyDept();
         }
       }).subscribe();
   }catch(e){ /* التحديث اللحظي اختياري */ }
@@ -1164,6 +1181,7 @@ function render(){
 }
 
 document.querySelectorAll('.panel input').forEach(inp => inp.addEventListener('input', () => {
+  if(curDept === 'all') return; /* العرض التجميعي للقراءة فقط */
   allData[curDept][inp.id] = inp.value;
   render();
   if(SB_READY) saveRemote(); else saveData();
