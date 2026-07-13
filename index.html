@@ -7,7 +7,18 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Changa:wght@500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+/* مصدر احتياطي لمكتبة الرسوم إن تعذر الأول (بعض شبكات الجوال تحجب مزودات معينة) */
+if(typeof Chart === 'undefined'){
+  document.write('<scr' + 'ipt src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></scr' + 'ipt>');
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+if(typeof window.supabase === 'undefined'){
+  document.write('<scr' + 'ipt src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></scr' + 'ipt>');
+}
+</script>
 <style>
   :root{
     --ink:#14232b; --ink-soft:#4c626e;
@@ -68,6 +79,14 @@
   .rp-chart img{width:100%;height:auto}
   .rp-foot{margin-top:22px;padding-top:10px;border-top:1px solid #dde6e4;font-size:.75rem;color:#4c626e;display:flex;justify-content:space-between}
   .rp-break{page-break-before:always}
+  .rp-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0 4px}
+  .rp-card{border:1.5px solid var(--teal-deep);border-radius:10px;padding:10px;text-align:center}
+  .rp-card .v{font-family:'Changa',sans-serif;font-size:1.5rem;font-weight:800;color:var(--teal-deep)}
+  .rp-card .l{font-size:.72rem;color:#4c626e;font-weight:600}
+  .rp-sign{display:flex;justify-content:space-between;gap:30px;margin-top:34px}
+  .rp-sign div{flex:1;text-align:center;font-size:.85rem;font-weight:700;color:#14232b}
+  .rp-sign div span{display:block;margin-top:38px;border-top:1.5px dotted #4c626e;padding-top:6px;font-weight:400;font-size:.78rem;color:#4c626e}
+  .rp-note{font-size:.78rem;color:#4c626e;margin:6px 0 0;line-height:1.7}
   @media print{
     body > *:not(#reportView){display:none!important}
     #reportView{display:block!important}
@@ -585,12 +604,23 @@ const $ = id => document.getElementById(id);
 /* نسخة أصلية من كود الصفحة تُلتقط عند التحميل — تُستخدم لتوليد ملف محدث بالأرقام الجديدة */
 const PAGE_SOURCE = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
 
-const SUPABASE_URL = 'https://osoyaipjfshrihqfbmjt.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zb3lhaXBqZnNocmlocWZibWp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MDMxMjQsImV4cCI6MjA5OTA3OTEyNH0.DFY1R5lmp-97w05CzbCbvKkEbnw1X4sCHIyrE9dBYl4';
+/* ============ إعداد Supabase ============
+   1) أنشئ مشروعاً مجانياً في supabase.com
+   2) نفّذ ملف setup.sql المرفق في SQL Editor
+   3) أنشئ مستخدم الأدمن من Authentication → Users (بريد + كلمة مرور)
+   4) انسخ Project URL و anon public key من Settings → API وضعهما هنا
+   ملاحظة أمان: مفتاح anon مصمم ليكون علنياً — الحماية تتم عبر سياسات
+   Row Level Security في قاعدة البيانات (القراءة للجميع، الكتابة للأدمن فقط) */
+const SUPABASE_URL = 'PASTE_SUPABASE_URL_HERE';
+const SUPABASE_ANON_KEY = 'PASTE_SUPABASE_ANON_KEY_HERE';
 
-
-const SB_READY = SUPABASE_URL.startsWith('https://') && SUPABASE_ANON_KEY.length > 30;
-const sb = SB_READY ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+let SB_READY = typeof window.supabase !== 'undefined'
+  && SUPABASE_URL.startsWith('https://') && SUPABASE_ANON_KEY.length > 30;
+let sb = null;
+try{
+  if(SB_READY) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}catch(e){ SB_READY = false; sb = null; console.warn('Supabase init failed:', e); }
+if(!sb) SB_READY = false;
 const num = id => Math.max(0, parseInt($(id).value) || 0);
 const fmt = n => n.toLocaleString('ar-SA');
 const pct = (part, total) => total ? Math.round(part/total*100) + '%' : '0%';
@@ -934,9 +964,11 @@ function initSupabase(){
 /* ---------- الرسوم ---------- */
 Chart.defaults.font.family = "'IBM Plex Sans Arabic', sans-serif";
 Chart.defaults.color = '#4c626e';
-/* متصفحات الجوال تحدّ من ذاكرة الرسم الإجمالية؛ مع 33 لوحة رسم بدقة شاشة ثلاثية
-   يتجاوز المجموع الحد فتظهر الرسوم فارغة — نسقف الدقة عند 1.5 لحل ذلك */
-Chart.defaults.devicePixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+/* متصفحات الجوال تحدّ من ذاكرة الرسم الإجمالية؛ ومتصفحات آيفون (WebKit) الأشد تقييداً —
+   مع 33 لوحة رسم نسقف الدقة عند 1 على أجهزة آبل اللمسية و1.5 على غيرها */
+const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent)
+  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+Chart.defaults.devicePixelRatio = IS_IOS ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
 
 /* إضافة: كتابة قيمة في منتصف مؤشرات Gauge */
 Chart.register({
@@ -985,7 +1017,14 @@ const barOptsLegend = JSON.parse(JSON.stringify(barOpts));
 barOptsLegend.plugins.legend = { display:true, position:'bottom', labels:{ usePointStyle:true, padding:14 } };
 barOptsLegend.scales.y.grid = { color:'#e6edeb' };
 
-const mk = (id, cfg) => new Chart($(id), cfg);
+const mk = (id, cfg) => {
+  try{ return new Chart($(id), cfg); }
+  catch(e){
+    console.warn('chart failed:', id, e);
+    /* بديل صامت يحافظ على عمل بقية الموقع */
+    return { data: cfg.data, options: cfg.options || {}, update(){}, resize(){}, destroy(){} };
+  }
+};
 const charts = {
   fm: mk('ch_fm', { type:'doughnut', data:{ labels:['سعوديون','متعاقدون'], datasets:[{ data:[0,0], backgroundColor:['#2f6f9e','#c99a3f'], borderWidth:3, borderColor:'#fff' }] }, options:doughnutOpts }),
   ff: mk('ch_ff', { type:'doughnut', data:{ labels:['سعوديات','متعاقدات'], datasets:[{ data:[0,0], backgroundColor:['#2f6f9e','#c99a3f'], borderWidth:3, borderColor:'#fff' }] }, options:doughnutOpts }),
@@ -1250,84 +1289,135 @@ async function generateReport(){
   const label = isAll ? ALL_LABEL : DEPARTMENTS[curDept];
   const logoSrc = document.querySelector('.logo-box img').src;
   const today = new Date().toLocaleDateString('ar-SA', { year:'numeric', month:'long', day:'numeric' });
+  const pc = (a, t) => t ? Math.round(a / t * 100) + '%' : '—';
 
-  /* صور الرسوم */
-  const legendBottom = { plugins:{ legend:{ position:'bottom', labels:{ usePointStyle:true } } }, scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } } };
-  const imgFac = await chartImage({ type:'bar', data:{ labels:['سعوديون/ات','متعاقدون/ات'], datasets:[
+  /* ---------- صور الرسوم (تُرسم خصيصاً للتقرير بدقة عالية) ---------- */
+  const barLegend = { plugins:{ legend:{ position:'bottom', labels:{ usePointStyle:true } } }, scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } } };
+  const dough = { cutout:'55%', plugins:{ legend:{ position:'bottom', labels:{ usePointStyle:true } } } };
+
+  const imgFacBar = await chartImage({ type:'bar', data:{ labels:['سعوديون/ات','متعاقدون/ات'], datasets:[
     { label:'ذكور', data:[n.fsm, n.fcm], backgroundColor:'#0e6e5e', borderRadius:6 },
-    { label:'إناث', data:[n.fsf, n.fcf], backgroundColor:'#b34a63', borderRadius:6 } ] }, options: legendBottom }, 620, 320);
-  const imgStu = await chartImage({ type:'bar', data:{ labels:['بكالوريوس','دبلوم','دراسات عليا'], datasets:[
+    { label:'إناث', data:[n.fsf, n.fcf], backgroundColor:'#b34a63', borderRadius:6 } ] }, options: barLegend }, 600, 300);
+  const imgFacPie = await chartImage({ type:'doughnut', data:{ labels:['ذكور','إناث'], datasets:[{
+    data:[n.facM, n.facF], backgroundColor:['#0e6e5e','#b34a63'], borderWidth:2, borderColor:'#fff' }] }, options: dough }, 600, 300);
+  const imgFacCat = await chartImage({ type:'doughnut', data:{ labels:['سعوديون','متعاقدون'], datasets:[{
+    data:[n.fsm + n.fsf, n.fcm + n.fcf], backgroundColor:['#2f6f9e','#c99a3f'], borderWidth:2, borderColor:'#fff' }] }, options: dough }, 600, 300);
+
+  const imgStuBar = await chartImage({ type:'bar', data:{ labels:['بكالوريوس','دبلوم','دراسات عليا'], datasets:[
     { label:'طلاب', data:[n.stmB, n.stmD, n.stmG], backgroundColor:'#c99a3f', borderRadius:6 },
-    { label:'طالبات', data:[n.stfB, n.stfD, n.stfG], backgroundColor:'#8fb6a8', borderRadius:6 } ] }, options: legendBottom }, 620, 320);
-  const imgSch = await chartImage({ type:'bar', data:{ labels:['ماجستير','دكتوراه','الرحلة العلمية'], datasets:[
+    { label:'طالبات', data:[n.stfB, n.stfD, n.stfG], backgroundColor:'#8fb6a8', borderRadius:6 } ] }, options: barLegend }, 600, 300);
+  const imgStuPie = await chartImage({ type:'doughnut', data:{ labels:['طلاب','طالبات'], datasets:[{
+    data:[n.stuM, n.stuF], backgroundColor:['#c99a3f','#8fb6a8'], borderWidth:2, borderColor:'#fff' }] }, options: dough }, 600, 300);
+
+  const imgSchBar = await chartImage({ type:'bar', data:{ labels:['ماجستير','دكتوراه','الرحلة العلمية'], datasets:[
     { label:'ذكور', data:[n.smM, n.smP, n.smF], backgroundColor:'#2f6f9e', borderRadius:6 },
-    { label:'إناث', data:[n.sfM, n.sfP, n.sfF], backgroundColor:'#e0a7b5', borderRadius:6 } ] }, options: legendBottom }, 620, 320);
+    { label:'إناث', data:[n.sfM, n.sfP, n.sfF], backgroundColor:'#e0a7b5', borderRadius:6 } ] }, options: barLegend }, 600, 300);
+  const imgSchPie = await chartImage({ type:'doughnut', data:{ labels:['مبتعثون','مبتعثات'], datasets:[{
+    data:[n.schM, n.schF], backgroundColor:['#2f6f9e','#e0a7b5'], borderWidth:2, borderColor:'#fff' }] }, options: dough }, 600, 300);
+
   const imgRatio = await chartImage({ type:'bar', data:{ labels:['سعودي (ذكور)','متعاقد (ذكور)','سعودية (إناث)','متعاقدة (إناث)','الإجمالي'], datasets:[{
     label:'طالب لكل عضو',
-    data:[rdiv(n.stuM,n.fsm), rdiv(n.stuM,n.fcm), rdiv(n.stuF,n.fsf), rdiv(n.stuF,n.fcf), rdiv(n.stu,n.fac)],
+    data:[rdiv(n.stuM, n.fsm), rdiv(n.stuM, n.fcm), rdiv(n.stuF, n.fsf), rdiv(n.stuF, n.fcf), rdiv(n.stu, n.fac)],
     backgroundColor:['#0e6e5e','#c99a3f','#b34a63','#e0a7b5','#2f6f9e'], borderRadius:6 }] },
-    options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true } } } }, 620, 320);
+    options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true } } } }, 600, 300);
 
-  /* جدول مقارنة الأقسام (لتقرير الكلية فقط) */
-  let compare = '';
+  /* رسوم مقارنة الأقسام (لتقرير الكلية فقط) */
+  let imgCmpStu = '', imgCmpFac = '';
   if(isAll){
-    const rows = Object.keys(DEPARTMENTS).map(d => {
-      const x = deptNumbers(d);
-      return '<tr><td class="rp-name">' + DEPARTMENTS[d] + '</td><td>' + fmt(x.facM) + '</td><td>' + fmt(x.facF) + '</td><td>' + fmt(x.fac) + '</td><td>' + fmt(x.stuM) + '</td><td>' + fmt(x.stuF) + '</td><td>' + fmt(x.stu) + '</td><td>' + (x.fac ? fmt(rdiv(x.stu, x.fac)) : '—') + '</td></tr>';
-    }).join('');
-    compare = '<div class="rp-sec rp-break">مقارنة الأقسام</div>' +
-      '<table class="rp-table"><tr><th>القسم</th><th>أعضاء ذكور</th><th>عضوات</th><th>إجمالي الأعضاء</th><th>طلاب</th><th>طالبات</th><th>إجمالي الطلاب</th><th>طالب/عضو</th></tr>' +
-      rows +
-      '<tr class="rp-total"><td class="rp-name">إجمالي الكلية</td><td>' + fmt(n.facM) + '</td><td>' + fmt(n.facF) + '</td><td>' + fmt(n.fac) + '</td><td>' + fmt(n.stuM) + '</td><td>' + fmt(n.stuF) + '</td><td>' + fmt(n.stu) + '</td><td>' + fmt(rdiv(n.stu, n.fac)) + '</td></tr></table>';
+    const ids = Object.keys(DEPARTMENTS);
+    const names = ids.map(d => DEPARTMENTS[d].replace('قسم ',''));
+    const per = ids.map(d => deptNumbers(d));
+    imgCmpStu = await chartImage({ type:'bar', data:{ labels:names, datasets:[
+      { label:'طلاب', data:per.map(x => x.stuM), backgroundColor:'#c99a3f', borderRadius:5 },
+      { label:'طالبات', data:per.map(x => x.stuF), backgroundColor:'#8fb6a8', borderRadius:5 } ] },
+      options:{ plugins:{ legend:{ position:'bottom', labels:{ usePointStyle:true } } },
+        scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true, ticks:{ precision:0 } } } } }, 1240, 340);
+    imgCmpFac = await chartImage({ type:'bar', data:{ labels:names, datasets:[
+      { label:'أعضاء ذكور', data:per.map(x => x.facM), backgroundColor:'#0e6e5e', borderRadius:5 },
+      { label:'عضوات', data:per.map(x => x.facF), backgroundColor:'#b34a63', borderRadius:5 } ] },
+      options:{ plugins:{ legend:{ position:'bottom', labels:{ usePointStyle:true } } },
+        scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true, ticks:{ precision:0 } } } } }, 1240, 340);
   }
 
-  const old = $('reportView'); if(old) old.remove();
-  const rv = document.createElement('div');
-  rv.id = 'reportView';
-  rv.innerHTML =
+  /* ---------- بناء صفحات التقرير ---------- */
+  const chart2 = (t1, i1, t2, i2) =>
+    '<div class="rp-charts"><div class="rp-chart"><h4>' + t1 + '</h4><img src="' + i1 + '"></div>' +
+    '<div class="rp-chart"><h4>' + t2 + '</h4><img src="' + i2 + '"></div></div>';
+
+  let body =
     '<div class="rp-head"><img src="' + logoSrc + '" alt="الشعار">' +
     '<div><div class="rp-title">تقرير المؤشرات الأكاديمية — ' + label + '</div>' +
     '<div class="rp-sub">جامعة جازان — كلية الهندسة وعلوم الحاسب</div></div>' +
     '<div class="rp-date">تاريخ التقرير<br><b>' + today + '</b></div></div>' +
 
+    /* الملخص التنفيذي */
+    '<div class="rp-sec">الملخص التنفيذي</div>' +
+    '<div class="rp-cards">' +
+    '<div class="rp-card"><div class="v">' + fmt(n.fac) + '</div><div class="l">أعضاء هيئة التدريس</div></div>' +
+    '<div class="rp-card"><div class="v">' + fmt(n.stu) + '</div><div class="l">الطلاب والطالبات</div></div>' +
+    '<div class="rp-card"><div class="v">' + fmt(n.sch) + '</div><div class="l">الأعضاء المبتعثون</div></div>' +
+    '<div class="rp-card"><div class="v">' + (n.fac ? fmt(rdiv(n.stu, n.fac)) : '—') + '</div><div class="l">طالب لكل عضو هيئة تدريس</div></div>' +
+    '</div>' +
+    '<p class="rp-note">يضم ' + (isAll ? 'الكلية' : 'القسم') + ' ' + fmt(n.fac) + ' عضو هيئة تدريس (' + pc(n.facM, n.fac) + ' ذكور و' + pc(n.facF, n.fac) + ' إناث، منهم ' + pc(n.fsm + n.fsf, n.fac) + ' سعوديون)، و' + fmt(n.stu) + ' طالباً وطالبة (' + pc(n.stuM, n.stu) + ' طلاب و' + pc(n.stuF, n.stu) + ' طالبات)، إضافة إلى ' + fmt(n.sch) + ' عضواً مبتعثاً.</p>' +
+
+    /* 1: هيئة التدريس */
     '<div class="rp-sec">أولاً: أعضاء هيئة التدريس</div>' +
-    '<table class="rp-table"><tr><th>الفئة</th><th>ذكور</th><th>إناث</th><th>الإجمالي</th></tr>' +
-    '<tr><td class="rp-name">سعوديون</td><td>' + fmt(n.fsm) + '</td><td>' + fmt(n.fsf) + '</td><td>' + fmt(n.fsm + n.fsf) + '</td></tr>' +
-    '<tr><td class="rp-name">متعاقدون</td><td>' + fmt(n.fcm) + '</td><td>' + fmt(n.fcf) + '</td><td>' + fmt(n.fcm + n.fcf) + '</td></tr>' +
-    '<tr class="rp-total"><td class="rp-name">الإجمالي</td><td>' + fmt(n.facM) + '</td><td>' + fmt(n.facF) + '</td><td>' + fmt(n.fac) + '</td></tr></table>' +
+    '<table class="rp-table"><tr><th>الفئة</th><th>ذكور</th><th>إناث</th><th>الإجمالي</th><th>النسبة</th></tr>' +
+    '<tr><td class="rp-name">سعوديون</td><td>' + fmt(n.fsm) + '</td><td>' + fmt(n.fsf) + '</td><td>' + fmt(n.fsm + n.fsf) + '</td><td>' + pc(n.fsm + n.fsf, n.fac) + '</td></tr>' +
+    '<tr><td class="rp-name">متعاقدون</td><td>' + fmt(n.fcm) + '</td><td>' + fmt(n.fcf) + '</td><td>' + fmt(n.fcm + n.fcf) + '</td><td>' + pc(n.fcm + n.fcf, n.fac) + '</td></tr>' +
+    '<tr class="rp-total"><td class="rp-name">الإجمالي</td><td>' + fmt(n.facM) + '</td><td>' + fmt(n.facF) + '</td><td>' + fmt(n.fac) + '</td><td>100%</td></tr></table>' +
+    chart2('توزيع الفئات حسب الجنس', imgFacBar, 'الذكور مقابل الإناث', imgFacPie) +
 
-    '<div class="rp-sec">ثانياً: الطلاب والطالبات</div>' +
-    '<table class="rp-table"><tr><th>المرحلة</th><th>طلاب</th><th>طالبات</th><th>الإجمالي</th></tr>' +
-    '<tr><td class="rp-name">بكالوريوس</td><td>' + fmt(n.stmB) + '</td><td>' + fmt(n.stfB) + '</td><td>' + fmt(n.stmB + n.stfB) + '</td></tr>' +
-    '<tr><td class="rp-name">دبلوم</td><td>' + fmt(n.stmD) + '</td><td>' + fmt(n.stfD) + '</td><td>' + fmt(n.stmD + n.stfD) + '</td></tr>' +
-    '<tr><td class="rp-name">دراسات عليا</td><td>' + fmt(n.stmG) + '</td><td>' + fmt(n.stfG) + '</td><td>' + fmt(n.stmG + n.stfG) + '</td></tr>' +
-    '<tr class="rp-total"><td class="rp-name">الإجمالي</td><td>' + fmt(n.stuM) + '</td><td>' + fmt(n.stuF) + '</td><td>' + fmt(n.stu) + '</td></tr></table>' +
+    /* 2: الطلاب */
+    '<div class="rp-sec rp-break">ثانياً: الطلاب والطالبات</div>' +
+    '<table class="rp-table"><tr><th>المرحلة</th><th>طلاب</th><th>طالبات</th><th>الإجمالي</th><th>النسبة</th></tr>' +
+    '<tr><td class="rp-name">بكالوريوس</td><td>' + fmt(n.stmB) + '</td><td>' + fmt(n.stfB) + '</td><td>' + fmt(n.stmB + n.stfB) + '</td><td>' + pc(n.stmB + n.stfB, n.stu) + '</td></tr>' +
+    '<tr><td class="rp-name">دبلوم</td><td>' + fmt(n.stmD) + '</td><td>' + fmt(n.stfD) + '</td><td>' + fmt(n.stmD + n.stfD) + '</td><td>' + pc(n.stmD + n.stfD, n.stu) + '</td></tr>' +
+    '<tr><td class="rp-name">دراسات عليا</td><td>' + fmt(n.stmG) + '</td><td>' + fmt(n.stfG) + '</td><td>' + fmt(n.stmG + n.stfG) + '</td><td>' + pc(n.stmG + n.stfG, n.stu) + '</td></tr>' +
+    '<tr class="rp-total"><td class="rp-name">الإجمالي</td><td>' + fmt(n.stuM) + '</td><td>' + fmt(n.stuF) + '</td><td>' + fmt(n.stu) + '</td><td>100%</td></tr></table>' +
+    chart2('الطلاب حسب المرحلة والجنس', imgStuBar, 'الطلاب مقابل الطالبات', imgStuPie) +
 
-    '<div class="rp-sec">ثالثاً: الأعضاء المبتعثون</div>' +
-    '<table class="rp-table"><tr><th>الدرجة</th><th>ذكور</th><th>إناث</th><th>الإجمالي</th></tr>' +
-    '<tr><td class="rp-name">ماجستير</td><td>' + fmt(n.smM) + '</td><td>' + fmt(n.sfM) + '</td><td>' + fmt(n.smM + n.sfM) + '</td></tr>' +
-    '<tr><td class="rp-name">دكتوراه</td><td>' + fmt(n.smP) + '</td><td>' + fmt(n.sfP) + '</td><td>' + fmt(n.smP + n.sfP) + '</td></tr>' +
-    '<tr><td class="rp-name">الرحلة العلمية</td><td>' + fmt(n.smF) + '</td><td>' + fmt(n.sfF) + '</td><td>' + fmt(n.smF + n.sfF) + '</td></tr>' +
-    '<tr class="rp-total"><td class="rp-name">الإجمالي</td><td>' + fmt(n.schM) + '</td><td>' + fmt(n.schF) + '</td><td>' + fmt(n.sch) + '</td></tr></table>' +
+    /* 3: المبتعثون */
+    '<div class="rp-sec rp-break">ثالثاً: الأعضاء المبتعثون</div>' +
+    '<table class="rp-table"><tr><th>الدرجة</th><th>ذكور</th><th>إناث</th><th>الإجمالي</th><th>النسبة</th></tr>' +
+    '<tr><td class="rp-name">ماجستير</td><td>' + fmt(n.smM) + '</td><td>' + fmt(n.sfM) + '</td><td>' + fmt(n.smM + n.sfM) + '</td><td>' + pc(n.smM + n.sfM, n.sch) + '</td></tr>' +
+    '<tr><td class="rp-name">دكتوراه</td><td>' + fmt(n.smP) + '</td><td>' + fmt(n.sfP) + '</td><td>' + fmt(n.smP + n.sfP) + '</td><td>' + pc(n.smP + n.sfP, n.sch) + '</td></tr>' +
+    '<tr><td class="rp-name">الرحلة العلمية</td><td>' + fmt(n.smF) + '</td><td>' + fmt(n.sfF) + '</td><td>' + fmt(n.smF + n.sfF) + '</td><td>' + pc(n.smF + n.sfF, n.sch) + '</td></tr>' +
+    '<tr class="rp-total"><td class="rp-name">الإجمالي</td><td>' + fmt(n.schM) + '</td><td>' + fmt(n.schF) + '</td><td>' + fmt(n.sch) + '</td><td>100%</td></tr></table>' +
+    chart2('المبتعثون حسب الدرجة والجنس', imgSchBar, 'المبتعثون مقابل المبتعثات', imgSchPie) +
 
-    '<div class="rp-sec">رابعاً: نسبة أعضاء هيئة التدريس إلى الطلاب</div>' +
+    /* 4: النسب */
+    '<div class="rp-sec rp-break">رابعاً: نسبة أعضاء هيئة التدريس إلى الطلاب</div>' +
     '<table class="rp-table"><tr><th>الفئة</th><th>عدد الأعضاء</th><th>عدد الطلاب</th><th>طالب لكل عضو</th></tr>' +
     '<tr><td class="rp-name">العضو السعودي (ذكور)</td><td>' + fmt(n.fsm) + '</td><td>' + fmt(n.stuM) + '</td><td>' + (n.fsm ? fmt(rdiv(n.stuM, n.fsm)) : '—') + '</td></tr>' +
     '<tr><td class="rp-name">العضو المتعاقد (ذكور)</td><td>' + fmt(n.fcm) + '</td><td>' + fmt(n.stuM) + '</td><td>' + (n.fcm ? fmt(rdiv(n.stuM, n.fcm)) : '—') + '</td></tr>' +
     '<tr><td class="rp-name">العضوة السعودية (إناث)</td><td>' + fmt(n.fsf) + '</td><td>' + fmt(n.stuF) + '</td><td>' + (n.fsf ? fmt(rdiv(n.stuF, n.fsf)) : '—') + '</td></tr>' +
     '<tr><td class="rp-name">العضوة المتعاقدة (إناث)</td><td>' + fmt(n.fcf) + '</td><td>' + fmt(n.stuF) + '</td><td>' + (n.fcf ? fmt(rdiv(n.stuF, n.fcf)) : '—') + '</td></tr>' +
     '<tr class="rp-total"><td class="rp-name">الإجمالي العام</td><td>' + fmt(n.fac) + '</td><td>' + fmt(n.stu) + '</td><td>' + (n.fac ? fmt(rdiv(n.stu, n.fac)) : '—') + '</td></tr></table>' +
+    '<div class="rp-charts"><div class="rp-chart" style="grid-column:1/-1"><h4>عدد الطلاب مقابل كل عضو هيئة تدريس</h4><img src="' + imgRatio + '" style="max-width:620px"></div></div>';
 
-    '<div class="rp-sec rp-break">الرسوم البيانية</div>' +
-    '<div class="rp-charts">' +
-    '<div class="rp-chart"><h4>هيئة التدريس حسب الفئة والجنس</h4><img src="' + imgFac + '"></div>' +
-    '<div class="rp-chart"><h4>الطلاب حسب المرحلة والجنس</h4><img src="' + imgStu + '"></div>' +
-    '<div class="rp-chart"><h4>المبتعثون حسب الدرجة والجنس</h4><img src="' + imgSch + '"></div>' +
-    '<div class="rp-chart"><h4>عدد الطلاب مقابل كل عضو هيئة تدريس</h4><img src="' + imgRatio + '"></div>' +
-    '</div>' +
-    compare +
-    '<div class="rp-foot"><span>أُنشئ آلياً من لوحة المؤشرات الأكاديمية</span><span>جامعة جازان — كلية الهندسة وعلوم الحاسب</span></div>';
+  /* 5: مقارنة الأقسام — لتقرير الكلية فقط */
+  if(isAll){
+    const rows = Object.keys(DEPARTMENTS).map(d => {
+      const x = deptNumbers(d);
+      return '<tr><td class="rp-name">' + DEPARTMENTS[d] + '</td><td>' + fmt(x.facM) + '</td><td>' + fmt(x.facF) + '</td><td>' + fmt(x.fac) + '</td><td>' + fmt(x.stuM) + '</td><td>' + fmt(x.stuF) + '</td><td>' + fmt(x.stu) + '</td><td>' + (x.fac ? fmt(rdiv(x.stu, x.fac)) : '—') + '</td></tr>';
+    }).join('');
+    body += '<div class="rp-sec rp-break">خامساً: مقارنة الأقسام</div>' +
+      '<table class="rp-table"><tr><th>القسم</th><th>أعضاء ذكور</th><th>عضوات</th><th>إجمالي الأعضاء</th><th>طلاب</th><th>طالبات</th><th>إجمالي الطلاب</th><th>طالب/عضو</th></tr>' +
+      rows +
+      '<tr class="rp-total"><td class="rp-name">إجمالي الكلية</td><td>' + fmt(n.facM) + '</td><td>' + fmt(n.facF) + '</td><td>' + fmt(n.fac) + '</td><td>' + fmt(n.stuM) + '</td><td>' + fmt(n.stuF) + '</td><td>' + fmt(n.stu) + '</td><td>' + fmt(rdiv(n.stu, n.fac)) + '</td></tr></table>' +
+      '<div class="rp-charts"><div class="rp-chart" style="grid-column:1/-1"><h4>الطلاب في كل قسم (طلاب/طالبات)</h4><img src="' + imgCmpStu + '"></div>' +
+      '<div class="rp-chart" style="grid-column:1/-1"><h4>أعضاء هيئة التدريس في كل قسم (ذكور/إناث)</h4><img src="' + imgCmpFac + '"></div></div>';
+  }
 
+  /* الاعتماد والتذييل */
+  body += '<div class="rp-sign"><div>إعداد<span>الاسم والتوقيع</span></div><div>مراجعة<span>الاسم والتوقيع</span></div><div>اعتماد رئيس القسم / عميد الكلية<span>الاسم والتوقيع</span></div></div>' +
+    '<div class="rp-foot"><span>أُنشئ آلياً من لوحة المؤشرات الأكاديمية بتاريخ ' + today + '</span><span>جامعة جازان — كلية الهندسة وعلوم الحاسب</span></div>';
+
+  const old = $('reportView'); if(old) old.remove();
+  const rv = document.createElement('div');
+  rv.id = 'reportView';
+  rv.innerHTML = body;
   document.body.appendChild(rv);
   const cleanup = () => { const el = $('reportView'); if(el) el.remove(); window.removeEventListener('afterprint', cleanup); };
   window.addEventListener('afterprint', cleanup);
