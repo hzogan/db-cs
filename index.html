@@ -53,9 +53,16 @@ if(typeof window.supabase === 'undefined'){
   .dept-bar button.active{background:var(--sand);color:#3d2c08;border-color:var(--sand);box-shadow:0 3px 10px rgba(201,154,63,.35)}
   .dept-bar button:hover:not(.active){border-color:var(--sand);color:var(--ink)}
   .dept-bar button:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
-  .dept-bar button.all-dept{border:2px solid var(--sky);color:var(--sky);font-weight:700}
-  .dept-bar button.all-dept.active{background:var(--sky);color:#fff;border-color:var(--sky);box-shadow:0 3px 12px rgba(47,111,158,.4)}
-  .dept-bar button.all-dept:hover:not(.active){background:#eaf1f7;color:var(--sky)}
+  /* ---- هوية لونية مميزة عند اختيار «كل الكلية» ----
+     تغيير متغيري اللون الأساسيين يقلب ألوان الهيدر وشريط التنقل وعناوين
+     الصفحات والبطاقات والمربعات كلها من الأخضر إلى العنابي المميز */
+  body.college-mode{--teal:#a13552;--teal-deep:#7c2740}
+  body.college-mode .featured{
+    background:linear-gradient(135deg,#7c2740 0%,#a13552 55%,#bb5273 100%);
+    box-shadow:0 14px 36px rgba(124,39,64,.32);
+  }
+  body.college-mode .dept-wrap{border-bottom-color:#e8d3da}
+  body.college-mode .admin-badge{background:#f7e9ee;color:#7c2740;border-color:#e3c3ce}
   .report-btn{margin-inline-start:auto;border:2px solid var(--teal);color:var(--teal-deep);font-weight:700;background:#fff;border-radius:999px;padding:8px 20px;font-family:'Changa',sans-serif;font-size:.9rem;cursor:pointer;transition:all .2s}
   .report-btn:hover{background:var(--teal);color:#fff}
   .report-btn:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
@@ -83,9 +90,6 @@ if(typeof window.supabase === 'undefined'){
   .rp-card{border:1.5px solid var(--teal-deep);border-radius:10px;padding:10px;text-align:center}
   .rp-card .v{font-family:'Changa',sans-serif;font-size:1.5rem;font-weight:800;color:var(--teal-deep)}
   .rp-card .l{font-size:.72rem;color:#4c626e;font-weight:600}
-  .rp-sign{display:flex;justify-content:space-between;gap:30px;margin-top:34px}
-  .rp-sign div{flex:1;text-align:center;font-size:.85rem;font-weight:700;color:#14232b}
-  .rp-sign div span{display:block;margin-top:38px;border-top:1.5px dotted #4c626e;padding-top:6px;font-weight:400;font-size:.78rem;color:#4c626e}
   .rp-note{font-size:.78rem;color:#4c626e;margin:6px 0 0;line-height:1.7}
   @media print{
     body > *:not(#reportView){display:none!important}
@@ -261,13 +265,13 @@ if(typeof window.supabase === 'undefined'){
 <div class="dept-wrap">
   <div class="dept-bar" id="deptBar">
     <span class="dept-label">القسم:</span>
-    <button data-dept="all" class="all-dept">كل الكلية</button>
     <button data-dept="cs" class="active">علوم الحاسب</button>
     <button data-dept="ee">الهندسة الكهربائية والإلكترونية</button>
     <button data-dept="civil">الهندسة المدنية والمعمارية</button>
     <button data-dept="ind">الهندسة الصناعية</button>
     <button data-dept="chem">الهندسة الكيميائية</button>
     <button data-dept="mech">الهندسة الميكانيكية</button>
+    <button data-dept="all">كل الكلية</button>
   </div>
 </div>
 
@@ -604,9 +608,15 @@ const $ = id => document.getElementById(id);
 /* نسخة أصلية من كود الصفحة تُلتقط عند التحميل — تُستخدم لتوليد ملف محدث بالأرقام الجديدة */
 const PAGE_SOURCE = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
 
-const SUPABASE_URL = 'https://osoyaipjfshrihqfbmjt.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zb3lhaXBqZnNocmlocWZibWp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MDMxMjQsImV4cCI6MjA5OTA3OTEyNH0.DFY1R5lmp-97w05CzbCbvKkEbnw1X4sCHIyrE9dBYl4';
-
+/* ============ إعداد Supabase ============
+   1) أنشئ مشروعاً مجانياً في supabase.com
+   2) نفّذ ملف setup.sql المرفق في SQL Editor
+   3) أنشئ مستخدم الأدمن من Authentication → Users (بريد + كلمة مرور)
+   4) انسخ Project URL و anon public key من Settings → API وضعهما هنا
+   ملاحظة أمان: مفتاح anon مصمم ليكون علنياً — الحماية تتم عبر سياسات
+   Row Level Security في قاعدة البيانات (القراءة للجميع، الكتابة للأدمن فقط) */
+const SUPABASE_URL = 'PASTE_SUPABASE_URL_HERE';
+const SUPABASE_ANON_KEY = 'PASTE_SUPABASE_ANON_KEY_HERE';
 
 let SB_READY = typeof window.supabase !== 'undefined'
   && SUPABASE_URL.startsWith('https://') && SUPABASE_ANON_KEY.length > 30;
@@ -866,6 +876,7 @@ function applyDept(){
   $('deptNameEdit').textContent = label;
   document.querySelectorAll('.panel input').forEach(i => i.disabled = isAll);
   $('aggNote').style.display = isAll ? 'block' : 'none';
+  document.body.classList.toggle('college-mode', isAll);
   document.querySelectorAll('#deptBar button[data-dept]').forEach(b =>
     b.classList.toggle('active', b.dataset.dept === curDept));
   render();
@@ -963,25 +974,32 @@ Chart.defaults.color = '#4c626e';
 const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent)
   || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 Chart.defaults.devicePixelRatio = IS_IOS ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
+if(IS_IOS) Chart.defaults.animation = false;
 
 /* إضافة: كتابة قيمة في منتصف مؤشرات Gauge */
 Chart.register({
   id: 'centerLabel',
   afterDraw(chart){
-    const c = chart.options.centerLabel;
-    if(!c) return;
-    const { ctx, chartArea } = chart;
-    const x = (chartArea.left + chartArea.right) / 2;
-    const y = (chartArea.top + chartArea.bottom) / 2;
-    ctx.save();
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = c.color || '#0a4f44';
-    ctx.font = "800 30px 'Changa', sans-serif";
-    ctx.fillText(c.value || '', x, y - 8);
-    ctx.fillStyle = '#4c626e';
-    ctx.font = "500 12px 'IBM Plex Sans Arabic', sans-serif";
-    ctx.fillText(c.label || '', x, y + 18);
-    ctx.restore();
+    try{
+      const c = chart.options && chart.options.centerLabel;
+      if(!c) return;
+      const area = chart.chartArea;
+      /* على WebKit قد تُستدعى قبل اكتمال حساب الأبعاد — الحرس هنا يمنع انهيار كل الرسوم */
+      if(!area || !isFinite(area.left) || !isFinite(area.right) || !isFinite(area.top) || !isFinite(area.bottom)) return;
+      const ctx = chart.ctx;
+      if(!ctx) return;
+      const x = (area.left + area.right) / 2;
+      const y = (area.top + area.bottom) / 2;
+      ctx.save();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = c.color || '#0a4f44';
+      ctx.font = "800 30px 'Changa', sans-serif";
+      ctx.fillText(c.value || '', x, y - 8);
+      ctx.fillStyle = '#4c626e';
+      ctx.font = "500 12px 'IBM Plex Sans Arabic', sans-serif";
+      ctx.fillText(c.label || '', x, y + 18);
+      ctx.restore();
+    }catch(e){ /* لا يُسمح لأي خطأ في الإضافة بإيقاف رسم اللوحات */ }
   }
 });
 
@@ -1269,10 +1287,15 @@ async function chartImage(cfg, w, h){
   holder.appendChild(cv);
   document.body.appendChild(holder);
   cfg.options = Object.assign({}, cfg.options, { responsive:false, animation:false, devicePixelRatio:2 });
-  const ch = new Chart(cv, cfg);
-  await new Promise(r => setTimeout(r, 80));
-  const img = ch.toBase64Image('image/png', 1);
-  ch.destroy(); holder.remove();
+  let ch, img = '';
+  try{
+    ch = new Chart(cv, cfg);
+    await new Promise(r => setTimeout(r, 150));
+    ch.update('none');
+    img = ch.toBase64Image('image/png', 1);
+  }catch(e){ console.warn('report chart failed:', e); }
+  if(ch) ch.destroy();
+  holder.remove();
   return img;
 }
 
@@ -1405,8 +1428,7 @@ async function generateReport(){
   }
 
   /* الاعتماد والتذييل */
-  body += '<div class="rp-sign"><div>إعداد<span>الاسم والتوقيع</span></div><div>مراجعة<span>الاسم والتوقيع</span></div><div>اعتماد رئيس القسم / عميد الكلية<span>الاسم والتوقيع</span></div></div>' +
-    '<div class="rp-foot"><span>أُنشئ آلياً من لوحة المؤشرات الأكاديمية بتاريخ ' + today + '</span><span>جامعة جازان — كلية الهندسة وعلوم الحاسب</span></div>';
+  body += '<div class="rp-foot"><span>أُنشئ آلياً من لوحة المؤشرات الأكاديمية بتاريخ ' + today + '</span><span>جامعة جازان — كلية الهندسة وعلوم الحاسب</span></div>';
 
   const old = $('reportView'); if(old) old.remove();
   const rv = document.createElement('div');
