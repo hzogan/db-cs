@@ -608,15 +608,9 @@ const $ = id => document.getElementById(id);
 /* نسخة أصلية من كود الصفحة تُلتقط عند التحميل — تُستخدم لتوليد ملف محدث بالأرقام الجديدة */
 const PAGE_SOURCE = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
 
-/* ============ إعداد Supabase ============
-   1) أنشئ مشروعاً مجانياً في supabase.com
-   2) نفّذ ملف setup.sql المرفق في SQL Editor
-   3) أنشئ مستخدم الأدمن من Authentication → Users (بريد + كلمة مرور)
-   4) انسخ Project URL و anon public key من Settings → API وضعهما هنا
-   ملاحظة أمان: مفتاح anon مصمم ليكون علنياً — الحماية تتم عبر سياسات
-   Row Level Security في قاعدة البيانات (القراءة للجميع، الكتابة للأدمن فقط) */
-const SUPABASE_URL = 'PASTE_SUPABASE_URL_HERE';
-const SUPABASE_ANON_KEY = 'PASTE_SUPABASE_ANON_KEY_HERE';
+const SUPABASE_URL = 'https://osoyaipjfshrihqfbmjt.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zb3lhaXBqZnNocmlocWZibWp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MDMxMjQsImV4cCI6MjA5OTA3OTEyNH0.DFY1R5lmp-97w05CzbCbvKkEbnw1X4sCHIyrE9dBYl4';
+
 
 let SB_READY = typeof window.supabase !== 'undefined'
   && SUPABASE_URL.startsWith('https://') && SUPABASE_ANON_KEY.length > 30;
